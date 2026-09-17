@@ -1,0 +1,16 @@
+{
+  "name": "نظام النداء QR",
+  "short_name": "QR System",
+  "start_url": "/QR-system-n/",
+  "scope": "/QR-system-n/",
+  "display": "standalone",
+  "background_color": "#1e1e2f",
+  "theme_color": "#ffa500",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
