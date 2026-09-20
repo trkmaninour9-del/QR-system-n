@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام الاستعلام والنداء الاحترافي</title>
     <link rel="manifest" href="manifest.json">
+    <!-- استخدام Tailwind (أساسي للتصميم) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- تحميل المكتبات بـ defer لكي لا تتسبب بأي تعليق للشاشة أو الأزرار -->
+    <script src="https://unpkg.com/html5-qrcode" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Cairo', sans-serif; }
         ::-webkit-scrollbar { width: 6px; }
@@ -21,8 +23,8 @@
     <div id="start-screen" class="w-full max-w-md mt-10 text-center">
         <h1 class="text-3xl font-bold text-orange-500 mb-8">نظام النداء الآلي</h1>
         <div class="space-y-4">
-            <button onclick="showUserLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition">دخول المشتركين</button>
-            <button onclick="showAdminLogin()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-lg transition border border-slate-600">دخول الإدارة</button>
+            <button onclick="showUserLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition shadow-lg">دخول المشتركين</button>
+            <button onclick="showAdminLogin()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-lg transition border border-slate-600 shadow-lg">دخول الإدارة</button>
         </div>
     </div>
 
@@ -30,20 +32,20 @@
     <div id="user-login-screen" class="w-full max-w-md mt-10 hidden">
         <h2 class="text-2xl font-bold text-center mb-6">تسجيل دخول المشترك</h2>
         <input type="text" id="userNameInput" placeholder="أدخل اسمك الكريم هنا..." class="w-full p-3 rounded-lg bg-slate-800 text-white border border-slate-600 mb-4 focus:border-blue-500 focus:outline-none">
-        <button onclick="loginUser()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition mb-2">متابعة</button>
+        <button onclick="loginUser()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition mb-2 shadow-lg">متابعة</button>
         <button onclick="goBack('user-login-screen')" class="w-full text-slate-400 py-2">رجوع</button>
     </div>
 
     <!-- لوحة المشترك (الماسح + الرسائل) -->
     <div id="user-dashboard" class="w-full max-w-md hidden">
-        <div class="flex justify-between items-center mb-6 bg-slate-900 p-4 rounded-lg border border-slate-700">
+        <div class="flex justify-between items-center mb-6 bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
             <h2 id="welcome-message" class="text-lg font-bold text-blue-400">أهلاً بك</h2>
             <button onclick="logout()" class="text-red-400 text-sm hover:text-red-300">تسجيل خروج</button>
         </div>
         
         <div id="reader" class="w-full bg-black rounded-lg overflow-hidden border-2 border-slate-700 mb-6 min-h-[250px]"></div>
         
-        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
             <h3 class="font-bold mb-3 text-orange-400 border-b border-slate-700 pb-2">صندوق الرسائل (عام وخاص):</h3>
             <div id="user-messages" class="space-y-2 max-h-48 overflow-y-auto">
                 <p class="text-slate-400 text-sm">جاري جلب الرسائل...</p>
@@ -55,71 +57,92 @@
     <div id="admin-login-screen" class="w-full max-w-md mt-10 hidden">
         <h2 class="text-2xl font-bold text-center mb-6">تسجيل دخول الإدارة</h2>
         <input type="password" id="adminPassword" placeholder="كلمة المرور..." class="w-full p-3 rounded-lg bg-slate-800 text-white border border-slate-600 mb-4 text-center">
-        <button onclick="loginAdmin()" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg transition mb-2">دخول</button>
+        <button onclick="loginAdmin()" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg transition mb-2 shadow-lg">دخول</button>
         <button onclick="goBack('admin-login-screen')" class="w-full text-slate-400 py-2">رجوع</button>
     </div>
 
     <!-- لوحة الإدارة -->
     <div id="admin-dashboard" class="w-full max-w-md hidden space-y-6 pb-10">
-        <div class="flex justify-between items-center bg-slate-900 p-4 rounded-lg border border-slate-700 mt-4">
+        <div class="flex justify-between items-center bg-slate-900 p-4 rounded-lg border border-slate-700 mt-4 shadow-lg">
             <h2 class="text-xl font-bold text-orange-500">لوحة التحكم</h2>
             <button onclick="logout()" class="text-red-400 text-sm hover:text-red-300">تسجيل خروج</button>
         </div>
 
         <!-- إرسال رسالة -->
-        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
             <h3 class="font-bold mb-3">إرسال رسالة:</h3>
             <input type="text" id="targetUserInput" placeholder="اسم المشترك (اتركه فارغاً لرسالة للجميع)" class="w-full p-2 mb-2 rounded bg-slate-800 border border-slate-600 text-sm">
             <textarea id="adminMsgInput" placeholder="اكتب رسالتك هنا..." class="w-full p-2 mb-2 rounded bg-slate-800 border border-slate-600 h-20 text-sm"></textarea>
-            <button onclick="sendMessage()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-bold">إرسال</button>
+            <button onclick="sendMessage()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-bold shadow">إرسال</button>
         </div>
 
         <!-- سجل النشاطات -->
-        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
             <h3 class="font-bold mb-3 flex justify-between">سجل نشاطات المشتركين: <button onclick="fetchLogs()" class="text-xs text-blue-400">تحديث</button></h3>
             <div id="admin-logs" class="space-y-2 max-h-60 overflow-y-auto text-sm"></div>
         </div>
 
         <!-- تغيير كلمة المرور -->
-        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
             <h3 class="font-bold mb-3 text-red-400">تغيير كلمة مرور الإدارة:</h3>
             <input type="text" id="newAdminPassword" placeholder="كلمة المرور الجديدة..." class="w-full p-2 mb-2 rounded bg-slate-800 border border-slate-600 text-sm">
-            <button onclick="changePassword()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded font-bold">حفظ التعديل</button>
+            <button onclick="changePassword()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded font-bold shadow">حفظ التعديل</button>
         </div>
     </div>
 
     <script>
-        // === إعدادات الاتصال بـ Supabase (محمية وآمنة) ===
+        // === إعدادات الاتصال بـ Supabase الآمنة ===
         let supabase = null;
         let currentUser = null;
         let html5QrcodeScanner = null;
 
-        try {
-            const SUPABASE_URL = 'https://vtdsuxpbuulumydvxqft.supabase.co';
-            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0ZHN1eHBidXVsdW15ZHZ4cGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMzA2MTQsImV4cCI6MjEwNDcwNjYxNH0.tDMl1mRQK-ZAyO0u6fbgrXYomvBFUqZuFWIZ9sHb_RQ';
+        // دالة آمنة للتهيئة تضمن عدم توقف الأزرار لو تأخرت المكتبة
+        function initSupabase() {
+            try {
+                const SUPABASE_URL = 'https://vtdsuxpbuulumydvxqft.supabase.co';
+                const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0ZHN1eHBidXVsdW15ZHZ4cGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMzA2MTQsImV4cCI6MjEwNDcwNjYxNH0.tDMl1mRQK-ZAyO0u6fbgrXYomvBFUqZuFWIZ9sHb_RQ';
 
-            if (window.supabase) {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                console.log("Supabase connected successfully!");
-            } else {
-                console.error("Supabase library not loaded!");
+                if (window.supabase) {
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    console.log("Supabase connected successfully!");
+                } else {
+                    console.warn("Supabase library loading in background...");
+                    setTimeout(initSupabase, 1000); // محاولة إعادة الاتصال لو لم تحمل بعد
+                }
+            } catch (err) {
+                console.error("Error initializing Supabase:", err);
             }
-        } catch (err) {
-            console.error("Error initializing Supabase:", err);
         }
-        // ===============================================
 
-        // دوال التنقل بين الشاشات
-        function hideAll() {
+        // تشغيل الاتصال فور جاهزية النافذة
+        window.addEventListener('DOMContentLoaded', () => {
+            initSupabase();
+        });
+
+        // دوال التنقل بين الشاشات (معروضة عالمياً لتعمل مع الأزرار فوراً)
+        window.hideAll = function() {
             ['start-screen', 'user-login-screen', 'user-dashboard', 'admin-login-screen', 'admin-dashboard'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.add('hidden');
             });
         }
-        function showUserLogin() { hideAll(); document.getElementById('user-login-screen').classList.remove('hidden'); }
-        function showAdminLogin() { hideAll(); document.getElementById('admin-login-screen').classList.remove('hidden'); }
-        function goBack(current) { hideAll(); document.getElementById('start-screen').classList.remove('hidden'); }
-        function logout() {
+
+        window.showUserLogin = function() {
+            hideAll();
+            document.getElementById('user-login-screen').classList.remove('hidden');
+        }
+
+        window.showAdminLogin = function() {
+            hideAll();
+            document.getElementById('admin-login-screen').classList.remove('hidden');
+        }
+
+        window.goBack = function(current) {
+            hideAll();
+            document.getElementById('start-screen').classList.remove('hidden');
+        }
+
+        window.logout = function() {
             if(html5QrcodeScanner) { 
                 html5QrcodeScanner.clear().catch(err => console.log(err)); 
             }
@@ -128,7 +151,7 @@
         }
 
         // --- قسم المشترك ---
-        function loginUser() {
+        window.loginUser = function() {
             const name = document.getElementById('userNameInput').value.trim();
             if(!name) { alert('يرجى إدخال اسمك!'); return; }
             currentUser = name;
@@ -142,6 +165,10 @@
         function startScanner() {
             if (html5QrcodeScanner) return;
             try {
+                if (typeof Html5Qrcode === 'undefined') {
+                    setTimeout(startScanner, 1000); // انتظار تحميل مكتبة الـ QR لو تأخرت
+                    return;
+                }
                 html5QrcodeScanner = new Html5Qrcode("reader");
                 const config = { fps: 10, qrbox: { width: 250, height: 250 } };
                 html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
@@ -199,9 +226,9 @@
         }
 
         // --- قسم الإدارة ---
-        async function loginAdmin() {
+        window.loginAdmin = async function() {
             const passInput = document.getElementById('adminPassword').value;
-            if (!supabase) { alert('قاعدة البيانات غير متصلة!'); return; }
+            if (!supabase) { alert('قاعدة البيانات تتصل الآن، انتظر ثانية وجرب مجدداً!'); return; }
             
             const { data, error } = await supabase.from('admin_settings').select('password').eq('id', 1).single();
             
@@ -215,7 +242,7 @@
             }
         }
 
-        async function fetchLogs() {
+        window.fetchLogs = async function() {
             if (!supabase) return;
             const { data, error } = await supabase.from('scan_logs').select('*').order('created_at', { ascending: false }).limit(20);
             const container = document.getElementById('admin-logs');
@@ -233,7 +260,7 @@
             }
         }
 
-        async function sendMessage() {
+        window.sendMessage = async function() {
             const content = document.getElementById('adminMsgInput').value.trim();
             const target = document.getElementById('targetUserInput').value.trim();
             if(!content) { alert('اكتب الرسالة أولاً!'); return; }
@@ -250,7 +277,7 @@
             } else { alert('حدث خطأ أثناء الإرسال.'); }
         }
 
-        async function changePassword() {
+        window.changePassword = async function() {
             const newPass = document.getElementById('newAdminPassword').value.trim();
             if(!newPass) return;
             if(!supabase) { alert('قاعدة البيانات غير متصلة!'); return; }
