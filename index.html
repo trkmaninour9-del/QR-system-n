@@ -5,11 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام الاستعلام والنداء الاحترافي</title>
     <link rel="manifest" href="manifest.json">
-    <!-- استخدام Tailwind (أساسي للتصميم) -->
+    <!-- مكتبات النظام الأساسية -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- تحميل المكتبات بـ defer لكي لا تتسبب بأي تعليق للشاشة أو الأزرار -->
-    <script src="https://unpkg.com/html5-qrcode" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Cairo', sans-serif; }
@@ -33,18 +32,28 @@
         <h2 class="text-2xl font-bold text-center mb-6">تسجيل دخول المشترك</h2>
         <input type="text" id="userNameInput" placeholder="أدخل اسمك الكريم هنا..." class="w-full p-3 rounded-lg bg-slate-800 text-white border border-slate-600 mb-4 focus:border-blue-500 focus:outline-none">
         <button onclick="loginUser()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition mb-2 shadow-lg">متابعة</button>
-        <button onclick="goBack('user-login-screen')" class="w-full text-slate-400 py-2">رجوع</button>
+        <button onclick="goBack()" class="w-full text-slate-400 py-2">رجوع</button>
     </div>
 
-    <!-- لوحة المشترك (الماسح + الرسائل) -->
+    <!-- لوحة المشترك (الماسح + الاستديو + الرسائل) -->
     <div id="user-dashboard" class="w-full max-w-md hidden">
         <div class="flex justify-between items-center mb-6 bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
             <h2 id="welcome-message" class="text-lg font-bold text-blue-400">أهلاً بك</h2>
             <button onclick="logout()" class="text-red-400 text-sm hover:text-red-300">تسجيل خروج</button>
         </div>
         
-        <div id="reader" class="w-full bg-black rounded-lg overflow-hidden border-2 border-slate-700 mb-6 min-h-[250px]"></div>
+        <!-- كاميرا الماسح -->
+        <div id="reader" class="w-full bg-black rounded-lg overflow-hidden border-2 border-slate-700 mb-3 min-h-[250px]"></div>
         
+        <!-- زر اختيار صورة من المعرض/الاستديو -->
+        <div class="mb-6 text-center">
+            <input type="file" id="qr-input-file" accept="image/*" class="hidden" onchange="scanFileFromGallery(event)">
+            <button onclick="document.getElementById('qr-input-file').click()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2.5 px-4 rounded-lg border border-slate-600 transition flex items-center justify-center gap-2 shadow">
+                <span>🖼️ مسح رمز QR من الاستديو / الصور</span>
+            </button>
+        </div>
+
+        <!-- صندوق الرسائل -->
         <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
             <h3 class="font-bold mb-3 text-orange-400 border-b border-slate-700 pb-2">صندوق الرسائل (عام وخاص):</h3>
             <div id="user-messages" class="space-y-2 max-h-48 overflow-y-auto">
@@ -58,7 +67,7 @@
         <h2 class="text-2xl font-bold text-center mb-6">تسجيل دخول الإدارة</h2>
         <input type="password" id="adminPassword" placeholder="كلمة المرور..." class="w-full p-3 rounded-lg bg-slate-800 text-white border border-slate-600 mb-4 text-center">
         <button onclick="loginAdmin()" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg transition mb-2 shadow-lg">دخول</button>
-        <button onclick="goBack('admin-login-screen')" class="w-full text-slate-400 py-2">رجوع</button>
+        <button onclick="goBack()" class="w-full text-slate-400 py-2">رجوع</button>
     </div>
 
     <!-- لوحة الإدارة -->
@@ -91,67 +100,46 @@
     </div>
 
     <script>
-        // === إعدادات الاتصال بـ Supabase الآمنة ===
+        // === إعدادات الاتصال بـ Supabase ===
+        const SUPABASE_URL = 'https://vtdsuxpbuulumydvxqft.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0ZHN1eHBidXVsdW15ZHZ4cGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMzA2MTQsImV4cCI6MjEwNDcwNjYxNH0.tDMl1mRQK-ZAyO0u6fbgrXYomvBFUqZuFWIZ9sHb_RQ';
+
         let supabase = null;
         let currentUser = null;
-        let html5QrcodeScanner = null;
+        let html5QrCode = null;
 
-        // دالة آمنة للتهيئة تضمن عدم توقف الأزرار لو تأخرت المكتبة
-        function initSupabase() {
-            try {
-                const SUPABASE_URL = 'https://vtdsuxpbuulumydvxqft.supabase.co';
-                const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0ZHN1eHBidXVsdW15ZHZ4cGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMzA2MTQsImV4cCI6MjEwNDcwNjYxNH0.tDMl1mRQK-ZAyO0u6fbgrXYomvBFUqZuFWIZ9sHb_RQ';
-
-                if (window.supabase) {
-                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                    console.log("Supabase connected successfully!");
-                } else {
-                    console.warn("Supabase library loading in background...");
-                    setTimeout(initSupabase, 1000); // محاولة إعادة الاتصال لو لم تحمل بعد
-                }
-            } catch (err) {
-                console.error("Error initializing Supabase:", err);
+        // تهيئة قاعدة البيانات فور تحميل الصفحة
+        window.addEventListener('load', () => {
+            if (window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log("Supabase connected successfully!");
+            } else {
+                alert("تعذر الاتصال بالمكتبة! تأكد من شبكة الإنترنت لديك.");
             }
-        }
-
-        // تشغيل الاتصال فور جاهزية النافذة
-        window.addEventListener('DOMContentLoaded', () => {
-            initSupabase();
         });
 
-        // دوال التنقل بين الشاشات (معروضة عالمياً لتعمل مع الأزرار فوراً)
-        window.hideAll = function() {
+        // التنقل بين الشاشات
+        function hideAll() {
             ['start-screen', 'user-login-screen', 'user-dashboard', 'admin-login-screen', 'admin-dashboard'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.add('hidden');
             });
         }
 
-        window.showUserLogin = function() {
-            hideAll();
-            document.getElementById('user-login-screen').classList.remove('hidden');
-        }
+        function showUserLogin() { hideAll(); document.getElementById('user-login-screen').classList.remove('hidden'); }
+        function showAdminLogin() { hideAll(); document.getElementById('admin-login-screen').classList.remove('hidden'); }
+        function goBack() { hideAll(); document.getElementById('start-screen').classList.remove('hidden'); }
 
-        window.showAdminLogin = function() {
-            hideAll();
-            document.getElementById('admin-login-screen').classList.remove('hidden');
-        }
-
-        window.goBack = function(current) {
-            hideAll();
-            document.getElementById('start-screen').classList.remove('hidden');
-        }
-
-        window.logout = function() {
-            if(html5QrcodeScanner) { 
-                html5QrcodeScanner.clear().catch(err => console.log(err)); 
+        async function logout() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                try { await html5QrCode.stop(); } catch(e){}
             }
             currentUser = null;
             goBack();
         }
 
         // --- قسم المشترك ---
-        window.loginUser = function() {
+        function loginUser() {
             const name = document.getElementById('userNameInput').value.trim();
             if(!name) { alert('يرجى إدخال اسمك!'); return; }
             currentUser = name;
@@ -163,44 +151,60 @@
         }
 
         function startScanner() {
-            if (html5QrcodeScanner) return;
-            try {
-                if (typeof Html5Qrcode === 'undefined') {
-                    setTimeout(startScanner, 1000); // انتظار تحميل مكتبة الـ QR لو تأخرت
-                    return;
-                }
-                html5QrcodeScanner = new Html5Qrcode("reader");
-                const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-                html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
-                .catch(err => console.log("Camera start error:", err));
-            } catch(e) { console.log(e); }
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+            .catch(err => console.log("الكاميرا غير متاحة:", err));
         }
 
         async function onScanSuccess(decodedText) {
-            if(html5QrcodeScanner && html5QrcodeScanner.isScanning) {
-                html5QrcodeScanner.pause(true);
+            if (html5QrCode && html5QrCode.isScanning) {
+                try { await html5QrCode.pause(true); } catch(e){}
             }
-            
-            const isValid = decodedText.includes("http"); 
-            
+
+            const isValid = decodedText.includes("http");
+
             if (supabase) {
-                await supabase.from('scan_logs').insert([
+                const { error } = await supabase.from('scan_logs').insert([
                     { user_name: currentUser, scan_content: decodedText, is_valid: isValid }
                 ]);
+                if(error) console.error("فشل حفظ السجل:", error);
             }
 
             if(isValid) {
                 alert(`✅ قراءة صحيحة!\nالمحتوى: ${decodedText}`);
             } else {
-                alert(`❌ قراءة خاطئة أو رمز غير مدعوم!`);
+                alert(`❌ رمز QR غير مدعوم!`);
             }
-            
+
             setTimeout(() => {
-                if(html5QrcodeScanner) html5QrcodeScanner.resume();
+                if (html5QrCode) {
+                    try { html5QrCode.resume(); } catch(e){}
+                }
             }, 3000);
         }
 
-        function onScanFailure(error) { /* تجاهل أخطاء المسح المستمرة */ }
+        function onScanFailure(error) { /* تجاهل الأخطاء العابرة للماسح */ }
+
+        // مسح صورة من الاستديو
+        async function scanFileFromGallery(event) {
+            if (!event.target.files || event.target.files.length === 0) return;
+            const file = event.target.files[0];
+
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+
+            try {
+                const decodedText = await html5QrCode.scanFile(file, true);
+                onScanSuccess(decodedText);
+            } catch (err) {
+                alert("❌ لم يتم العثور على رمز QR صالح في الصورة المختارة!");
+            }
+            event.target.value = '';
+        }
 
         async function fetchUserMessages() {
             if(!currentUser || !supabase) return;
@@ -210,7 +214,7 @@
                 .or(`target_user.is.null,target_user.eq.${currentUser}`)
                 .order('created_at', { ascending: false })
                 .limit(10);
-            
+
             const container = document.getElementById('user-messages');
             if (error) { container.innerHTML = '<p class="text-red-400">خطأ في جلب الرسائل</p>'; return; }
             if (!data || data.length === 0) { container.innerHTML = '<p class="text-slate-400">لا يوجد رسائل حالياً.</p>'; return; }
@@ -226,23 +230,33 @@
         }
 
         // --- قسم الإدارة ---
-        window.loginAdmin = async function() {
-            const passInput = document.getElementById('adminPassword').value;
-            if (!supabase) { alert('قاعدة البيانات تتصل الآن، انتظر ثانية وجرب مجدداً!'); return; }
-            
-            const { data, error } = await supabase.from('admin_settings').select('password').eq('id', 1).single();
-            
-            if (data && data.password === passInput) {
-                document.getElementById('adminPassword').value = '';
-                hideAll();
-                document.getElementById('admin-dashboard').classList.remove('hidden');
-                fetchLogs();
-            } else {
-                alert('كلمة المرور خاطئة!');
+        async function loginAdmin() {
+            const passInput = document.getElementById('adminPassword').value.trim();
+            if (!passInput) { alert('أدخل كلمة المرور أولاً!'); return; }
+            if (!supabase) { alert('جاري الاتصال بقاعدة البيانات، انتظر ثانية واحدة وجرب مجدداً.'); return; }
+
+            try {
+                const { data, error } = await supabase.from('admin_settings').select('password').eq('id', 1).single();
+
+                if (error) {
+                    alert('خطأ في قاعدة البيانات: ' + error.message);
+                    return;
+                }
+
+                if (data && data.password === passInput) {
+                    document.getElementById('adminPassword').value = '';
+                    hideAll();
+                    document.getElementById('admin-dashboard').classList.remove('hidden');
+                    fetchLogs();
+                } else {
+                    alert('كلمة المرور خاطئة!');
+                }
+            } catch (err) {
+                alert('حدث خطأ أثناء تسجيل الدخول: ' + err.message);
             }
         }
 
-        window.fetchLogs = async function() {
+        async function fetchLogs() {
             if (!supabase) return;
             const { data, error } = await supabase.from('scan_logs').select('*').order('created_at', { ascending: false }).limit(20);
             const container = document.getElementById('admin-logs');
@@ -260,7 +274,7 @@
             }
         }
 
-        window.sendMessage = async function() {
+        async function sendMessage() {
             const content = document.getElementById('adminMsgInput').value.trim();
             const target = document.getElementById('targetUserInput').value.trim();
             if(!content) { alert('اكتب الرسالة أولاً!'); return; }
@@ -274,22 +288,24 @@
                 alert('تم إرسال الرسالة بنجاح!');
                 document.getElementById('adminMsgInput').value = '';
                 document.getElementById('targetUserInput').value = '';
-            } else { alert('حدث خطأ أثناء الإرسال.'); }
+            } else { alert('حدث خطأ أثناء الإرسال: ' + error.message); }
         }
 
-        window.changePassword = async function() {
+        async function changePassword() {
             const newPass = document.getElementById('newAdminPassword').value.trim();
-            if(!newPass) return;
+            if(!newPass) { alert('أدخل كلمة المرور الجديدة!'); return; }
             if(!supabase) { alert('قاعدة البيانات غير متصلة!'); return; }
-            
+
             const { error } = await supabase.from('admin_settings').update({ password: newPass }).eq('id', 1);
             if(!error) {
                 alert('تم تغيير كلمة المرور بنجاح!');
                 document.getElementById('newAdminPassword').value = '';
+            } else {
+                alert('فشل التغيير: ' + error.message);
             }
         }
 
-        // تحديث الرسائل تلقائياً كل 5 ثواني
+        // تحديث رسائل المشترك كل 5 ثواني
         setInterval(() => {
             if(currentUser && !document.getElementById('user-dashboard').classList.contains('hidden')) {
                 fetchUserMessages();
