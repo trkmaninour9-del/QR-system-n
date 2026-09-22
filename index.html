@@ -3,253 +3,466 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة الدخول</title>
-    <!-- Tailwind CSS -->
+    <title>نظام الاستعلام والنداء</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #0b1120; color: #ffffff; }
-        .glass-panel { background-color: #151e32; border: 1px solid #1e293b; border-radius: 16px; }
-        .input-dark { background-color: #0b1120; border: 1px solid #1e293b; color: #fff; }
-        .input-dark:focus { outline: none; border-color: #0ea5e9; }
-        .btn-orange { background-color: #f59e0b; color: #000; transition: 0.2s; }
-        .btn-orange:hover { background-color: #d97706; }
-        .btn-teal { background-color: #0d9488; color: #fff; transition: 0.2s; }
-        .btn-teal:hover { background-color: #0f766e; }
+        body { font-family: 'Cairo', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center p-4">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
 
-    <!-- واجهة المشتركين (تسجيل الدخول) -->
-    <div id="login-view" class="glass-panel w-full max-w-md p-6 mt-10 shadow-2xl relative">
-        <div class="flex justify-center mb-4">
-            <div class="bg-blue-100 p-3 rounded-lg"><span class="text-3xl">📱</span></div>
-        </div>
-        <h2 class="text-center text-xl font-bold text-amber-500 mb-2">بوابة الدخول الآمنة</h2>
-        <p class="text-center text-sm text-gray-400 mb-6">اختر طريقة قراءة كود الـ QR:</p>
+    <div id="app" class="max-w-md mx-auto w-full flex-1 flex flex-col p-3">
+        <div class="my-auto text-center text-slate-400 text-xs">جاري الاتصال بالسيرفر...</div>
+    </div>
 
-        <!-- يظهر فقط إذا لم يكن الاسم محفوظاً -->
-        <div id="name-input-container" class="mb-4">
-            <input type="text" id="subscriber-name" placeholder="أدخل اسمك الكريم هنا..." class="w-full input-dark py-3 px-4 rounded-xl text-center focus:border-amber-500">
-        </div>
-        <!-- يظهر كترحيب إذا كان الاسم محفوظاً -->
-        <div id="welcome-back-msg" class="hidden mb-4 text-center text-green-400 font-bold text-sm bg-green-900/20 p-2 rounded-lg border border-green-800"></div>
-
-        <button onclick="startScanning('camera')" class="w-full btn-orange font-bold py-3 px-4 rounded-xl mb-3 flex items-center justify-center gap-2">
-            <span>📸</span> الكاميرا الحية لمسح الـ QR
-        </button>
-        
-        <input type="file" id="file-upload" class="hidden" accept="image/*" onchange="handleFileUpload(event)">
-        <button onclick="startScanning('gallery')" class="w-full bg-[#0b1120] border border-slate-700 hover:bg-slate-800 text-amber-500 font-bold py-3 px-4 rounded-xl mb-8 flex items-center justify-center gap-2">
-            <span>🖼️</span> صورة الـ QR من الاستديو
-        </button>
-
-        <div class="border-t border-slate-800 pt-6">
-            <p class="text-center text-xs text-slate-500 mb-4">أو دخول الأدمن</p>
-            <input type="password" id="admin-pass-input" placeholder="كلمة مرور الأدمن" class="w-full input-dark py-3 px-4 rounded-xl mb-3 text-center focus:border-slate-500">
-            <button onclick="adminLogin()" class="w-full bg-[#0b1120] border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold py-3 px-4 rounded-xl">
-                دخول لوحة التحكم
-            </button>
+    <!-- نافذة معاينة الصور -->
+    <div id="fileModal" class="fixed inset-0 bg-slate-950/95 z-50 hidden flex flex-col p-3 items-center justify-center">
+        <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl flex flex-col h-[85vh] overflow-hidden shadow-2xl">
+            <div class="p-3 bg-slate-950 border-b border-slate-800 flex justify-between items-center text-xs">
+                <span class="text-amber-400 font-bold px-2">معاينة الصورة</span>
+                <button onclick="closeViewer()" class="bg-red-500/10 text-red-400 px-4 py-1.5 rounded-xl font-bold">إغلاق</button>
+            </div>
+            <div id="modalContentContainer" class="flex-1 overflow-auto bg-slate-950/80 relative flex items-center justify-center p-2"></div>
         </div>
     </div>
 
-    <!-- شاشة مسح QR -->
-    <div id="scanner-view" class="glass-panel w-full max-w-md p-4 mt-10 hidden flex-col items-center">
-        <h3 class="text-amber-500 font-bold mb-3">جاري المسح...</h3>
-        <div id="reader" class="w-full bg-black rounded-xl overflow-hidden border border-slate-700 min-h-[250px]"></div>
-        <button onclick="cancelScan()" class="w-full mt-4 bg-red-900/50 text-red-200 border border-red-800 font-bold py-2 rounded-xl">إلغاء</button>
+    <!-- نافذة تعديل البيانات -->
+    <div id="editModal" class="fixed inset-0 bg-slate-950/95 z-50 hidden flex flex-col p-4 items-center justify-center">
+        <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3 shadow-2xl text-xs">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-amber-400">✏️ تعديل المعطيات</h3>
+                <button onclick="closeEditModal()" class="text-slate-400 font-bold">✕</button>
+            </div>
+            <input type="hidden" id="editEntryId">
+            <div>
+                <label class="block text-slate-400 mb-1">رمز النداء:</label>
+                <input type="text" id="editCallSign" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white font-mono">
+            </div>
+            <div>
+                <label class="block text-slate-400 mb-1">التفاصيل / النص:</label>
+                <textarea id="editContent" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white"></textarea>
+            </div>
+            <div>
+                <label class="block text-amber-400 mb-1">إضافة ملفات جديدة (اختياري):</label>
+                <input type="file" id="editFile" multiple class="text-[10px] text-slate-300 w-full">
+            </div>
+            <div id="editProgress" class="text-amber-400 font-bold hidden text-[10px]">جاري التحديث...</div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveEditEntry()" id="saveEditBtn" class="flex-1 bg-amber-500 text-slate-950 font-bold p-2.5 rounded-xl">حفظ التعديلات</button>
+                <button onclick="closeEditModal()" class="bg-slate-800 text-slate-300 font-bold p-2.5 rounded-xl">إلغاء</button>
+            </div>
+        </div>
     </div>
 
-    <!-- لوحة تحكم الإدارة (التصميم المطلوب) -->
-    <div id="admin-view" class="w-full max-w-md space-y-4 hidden pb-10">
-        
-        <!-- الترويسة -->
-        <div class="glass-panel p-4 flex justify-between items-center mt-4">
-            <button onclick="logoutAdmin()" class="bg-red-900/40 text-red-400 border border-red-800 px-3 py-1 rounded-lg text-xs hover:bg-red-800 hover:text-white transition">خروج</button>
-            <div class="text-right">
-                <h1 class="font-bold text-amber-500">لوحة التحكم (Supabase)</h1>
-                <p class="text-[10px] text-green-400">سيرفر مجاني 100% ✅</p>
-            </div>
-        </div>
-
-        <!-- إعدادات الأدمن (تغيير كلمة السر) -->
-        <div class="glass-panel p-4">
-            <h3 class="font-bold text-sm mb-3 flex items-center gap-1 text-slate-300">⚙️ إعدادات الدخول</h3>
-            <div class="flex gap-2">
-                <button onclick="changeAdminPass()" class="btn-teal px-4 rounded-lg font-bold text-xs whitespace-nowrap">حفظ وتحديث</button>
-                <input type="text" id="new-admin-pass" placeholder="كلمة السر الجديدة..." class="w-full input-dark p-2.5 rounded-lg text-left text-sm" dir="ltr">
-            </div>
-        </div>
-
-        <!-- إضافة بيانات وملفات -->
-        <div class="glass-panel p-4">
-            <h3 class="font-bold text-amber-500 text-sm mb-3">➕ إضافة بيانات وملفات جديدة</h3>
-            
-            <label class="text-xs text-slate-400 mb-1 block text-right">رمز النداء:</label>
-            <input type="text" id="call-sign" placeholder="مثال: Alpha 1" class="w-full input-dark p-2.5 rounded-lg text-sm mb-3">
-            
-            <textarea id="details-text" placeholder="النص أو التفاصيل..." class="w-full input-dark p-2.5 rounded-lg text-sm h-20 mb-3"></textarea>
-            
-            <label class="text-xs text-slate-400 mb-1 block text-right">اختر ملفات:</label>
-            <div class="flex items-center gap-2 mb-4 bg-[#0b1120] border border-slate-700 p-2 rounded-lg">
-                <button class="bg-slate-200 text-black px-3 py-1 text-xs rounded">اختيار الملفات</button>
-                <span class="text-xs text-slate-500">لم يتم اختيار أي ملف</span>
-            </div>
-
-            <button class="w-full btn-orange font-bold py-2.5 rounded-lg text-sm">رفع المرفقات للأنظمة السحابية</button>
-        </div>
-
-        <!-- العناصر المرفوعة (تعديل وحذف فردي) -->
-        <div class="glass-panel p-4">
-            <h3 class="font-bold text-amber-500 text-sm mb-3 text-right">📂 العناصر المرفوعة (ضمن رمز النداء الحالي):</h3>
-            
-            <!-- قائمة الملفات الفردية -->
-            <div class="space-y-2" id="files-list">
-                <!-- ملف مثال 1 -->
-                <div class="bg-[#0b1120] border border-slate-700 rounded-lg p-2 flex justify-between items-center">
-                    <div class="flex gap-2">
-                        <button onclick="deleteSingleFile('file_id_1')" class="bg-red-900/40 text-red-400 text-[10px] px-2 py-1 rounded border border-red-800">حذف 🗑️</button>
-                        <button onclick="editSingleFile('file_id_1')" class="bg-amber-900/40 text-amber-400 text-[10px] px-2 py-1 rounded border border-amber-800">تعديل ✏️</button>
-                    </div>
-                    <span class="text-xs text-slate-300 truncate w-48 text-right" dir="ltr">Anti-Tg kit 13-5-2027.pdf 📄</span>
-                </div>
-                <!-- ملف مثال 2 -->
-                <div class="bg-[#0b1120] border border-slate-700 rounded-lg p-2 flex justify-between items-center">
-                    <div class="flex gap-2">
-                        <button onclick="deleteSingleFile('file_id_2')" class="bg-red-900/40 text-red-400 text-[10px] px-2 py-1 rounded border border-red-800">حذف 🗑️</button>
-                        <button onclick="editSingleFile('file_id_2')" class="bg-amber-900/40 text-amber-400 text-[10px] px-2 py-1 rounded border border-amber-800">تعديل ✏️</button>
-                    </div>
-                    <span class="text-xs text-slate-300 truncate w-48 text-right" dir="ltr">Anti-TPO kit 2-12-2026.pdf 📄</span>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- السكربت -->
     <script>
-        // إعدادات البداية وحفظ الاسم
-        document.addEventListener("DOMContentLoaded", function() {
-            checkSavedName();
-            if(!localStorage.getItem('adminPassword')) {
-                localStorage.setItem('adminPassword', '1234'); // الباسورد الافتراضي
-            }
-        });
+        const SUPABASE_URL = "https://vtdsuxpbuulumydvxpft.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0ZHN1eHBidXVsdW15ZHZ4cGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMzA2MTQsImV4cCI6MjEwNDcwNjYxNH0.tDMl1mRQK-ZAyO0u6fbgrXYomvBFUqZuFWIZ9sHb_RQ";
 
-        function checkSavedName() {
-            let savedName = localStorage.getItem('subscriberName');
-            let nameInputDiv = document.getElementById('name-input-container');
-            let welcomeMsg = document.getElementById('welcome-back-msg');
-            
-            if(savedName) {
-                nameInputDiv.style.display = 'none';
-                welcomeMsg.innerText = 'أهلاً بعودتك يا ' + savedName + ' 👋';
-                welcomeMsg.style.display = 'block';
-            } else {
-                nameInputDiv.style.display = 'block';
-                welcomeMsg.style.display = 'none';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let html5QrCode = null;
+        let db = {
+            adminPass: '1234',
+            qrSecret: 'NOUR', 
+            entries: [],
+            session: { role: null, authenticated: false, messages: [] }
+        };
+
+        function getCurrentMonthKey() {
+            const d = new Date();
+            return `${d.getFullYear()}-${d.getMonth() + 1}`;
+        }
+
+        function getActiveQrToken() {
+            return `${db.qrSecret}-${getCurrentMonthKey()}`;
+        }
+
+        async function fetchServerData() {
+            try {
+                const { data: settingsData } = await supabaseClient.from('settings').select('*').eq('id', 'general').single();
+                if (settingsData && settingsData.qr_secret) db.qrSecret = settingsData.qr_secret;
+
+                const { data: entriesData } = await supabaseClient.from('entries').select('*').order('created_at', { ascending: false });
+                if (entriesData) db.entries = entriesData;
+            } catch (e) {
+                console.error("خطأ جلب البيانات:", e);
             }
         }
 
-        // مسح الـ QR
-        let scanner = null;
-        function startScanning(method) {
-            let savedName = localStorage.getItem('subscriberName');
-            let nameInput = document.getElementById('subscriber-name').value.trim();
-            
-            if(!savedName) {
-                if(nameInput === '') {
-                    alert('الرجاء إدخال اسمك أولاً ليتم حفظه!');
-                    return;
-                } else {
-                    localStorage.setItem('subscriberName', nameInput);
-                    checkSavedName();
-                }
-            }
+        async function initApp() {
+            await fetchServerData();
+            fn_checkUrlToken();
+            render();
+        }
 
-            if(method === 'camera') {
-                document.getElementById('login-view').style.display = 'none';
-                document.getElementById('scanner-view').style.display = 'flex';
-                scanner = new Html5Qrcode("reader");
-                scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess, (err)=>{})
-                .catch(err => {
-                    alert("يرجى إعطاء صلاحية الكاميرا!");
-                    cancelScan();
+        function fn_checkUrlToken() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tokenParam = urlParams.get('token');
+            if (tokenParam && tokenParam === getActiveQrToken()) authenticateSubscriber();
+        }
+
+        function isValidToken(scannedText) {
+            return scannedText && scannedText.includes(getActiveQrToken());
+        }
+
+        function authenticateSubscriber() {
+            db.session.authenticated = true;
+            db.session.role = 'subscriber';
+            if (db.session.messages.length === 0) {
+                db.session.messages.push({
+                    sender: 'bot',
+                    text: 'أهلاً بك يا معلم نور.\nتم التحقق بنجاح من الـ QR.\n\nأدخل **رمز النداء** لاستعراض البيانات والملفات المرفقة:',
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 });
-            } else if (method === 'gallery') {
-                document.getElementById('file-upload').click();
+            }
+            render();
+        }
+
+        function render() {
+            const root = document.getElementById('app');
+            const session = db.session;
+
+            if (!session.authenticated) {
+                root.innerHTML = `
+                    <div class="my-auto bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-2xl space-y-4">
+                        <div class="text-center space-y-1.5">
+                            <span class="text-3xl">📱</span>
+                            <h2 class="text-base font-bold text-amber-400">بوابة الدخول الآمنة</h2>
+                            <p class="text-[11px] text-slate-400">اختر طريقة قراءة كود الـ QR:</p>
+                        </div>
+                        <div class="space-y-2.5">
+                            <button onclick="startCameraScanner()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold p-3 rounded-xl transition text-xs shadow-md">📹 الكاميرا الحية لمسح الـ QR</button>
+                            <button onclick="document.getElementById('qrFilePicker').click()" class="w-full bg-slate-950 hover:bg-slate-800 text-amber-400 border border-slate-800 font-bold p-3 rounded-xl transition text-xs">🖼️ صورة الـ QR من الاستديو</button>
+                            <input type="file" id="qrFilePicker" accept="image/*" class="hidden" onchange="handleQrImageFile(event)">
+                            <div id="reader" class="w-full rounded-2xl overflow-hidden hidden bg-slate-950 border border-slate-800 mt-2"></div>
+                        </div>
+                        <div class="relative flex py-1 items-center">
+                            <div class="flex-grow border-t border-slate-800"></div>
+                            <span class="flex-shrink mx-3 text-[10px] text-slate-500">أو دخول الأدمن</span>
+                            <div class="flex-grow border-t border-slate-800"></div>
+                        </div>
+                        <form onsubmit="handleAdminLogin(event)" class="space-y-2 pt-1">
+                            <input type="password" id="adminPassInput" placeholder="كلمة مرور الأدمن (1234)" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white text-center outline-none focus:border-amber-400" required>
+                            <button type="submit" class="w-full bg-slate-950 text-slate-400 font-bold p-2.5 rounded-xl border border-slate-800 text-xs">دخول لوحة التحكم</button>
+                        </form>
+                    </div>
+                `;
+                return;
+            }
+
+            if (session.role === 'admin') {
+                const qrCodeApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + window.location.pathname + '?token=' + getActiveQrToken())}`;
+                
+                root.innerHTML = `
+                    <div class="space-y-4 pb-10 text-xs">
+                        <header class="flex justify-between items-center bg-slate-900 p-3.5 rounded-2xl border border-slate-800">
+                            <div><h1 class="font-bold text-amber-400 text-sm">لوحة التحكم (Supabase)</h1><p class="text-[10px] text-emerald-400">سيرفر مجاني 100% ✅</p></div>
+                            <button onclick="logout()" class="bg-red-500/10 text-red-400 px-3 py-1.5 rounded-xl">خروج</button>
+                        </header>
+
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
+                            <h3 class="font-bold text-amber-400">⚙️ تعديل كلمة الـ QR يدوياً</h3>
+                            <div class="flex gap-2">
+                                <input type="text" id="newQrSecretInput" value="${db.qrSecret}" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-2 text-white font-mono text-xs uppercase">
+                                <button onclick="updateQrSecret()" class="bg-cyan-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs">حفظ وتحديث</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-center space-y-2">
+                            <h3 class="font-bold text-amber-400">🎫 كود الـ QR الحالي</h3>
+                            <div class="bg-white p-2 inline-block rounded-xl"><img src="${qrCodeApiUrl}" class="w-28 h-28 mx-auto"></div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
+                            <h3 class="font-bold text-amber-400">➕ إضافة بيانات وملفات جديدة</h3>
+                            <form id="entryForm" onsubmit="handleAddEntry(event)" class="space-y-3">
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-1">رمز النداء:</label>
+                                    <input type="text" id="newCallSign" placeholder="مثال: Alpha 1" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white font-mono" required>
+                                </div>
+                                <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-2">
+                                    <textarea id="newContent" rows="2" placeholder="النص أو التفاصيل..." class="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white text-xs"></textarea>
+                                    <label class="block text-[10px] text-amber-400 mt-2">اختر ملفات:</label>
+                                    <input type="file" id="newFile" multiple class="text-[10px] text-slate-300 w-full pt-1">
+                                    <div id="uploadProgress" class="text-[10px] text-amber-400 font-bold hidden bg-amber-500/10 p-2 rounded"></div>
+                                </div>
+                                <button type="submit" id="submitBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold p-2.5 rounded-xl transition">رفع المرفقات للأنظمة السحابية</button>
+                            </form>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
+                            <h3 class="font-bold text-amber-400">📁 العناصر المرفوعة (${db.entries.length}):</h3>
+                            <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                                ${db.entries.map(e => `
+                                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-amber-400 font-mono font-bold text-[10px] bg-amber-500/10 px-2 py-0.5 rounded">${e.call_sign}</span>
+                                            <div class="flex gap-1">
+                                                <button onclick="openEditModal('${e.id}')" class="bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-[10px] font-bold">✏️ تعديل</button>
+                                                <button onclick="deleteEntry('${e.id}')" class="bg-red-500/10 text-red-400 px-2 py-1 rounded text-[10px] font-bold">🗑️ حذف</button>
+                                            </div>
+                                        </div>
+                                        ${e.content ? `<p class="text-slate-300 text-[11px] whitespace-pre-line">${e.content}</p>` : ''}
+                                        ${e.files && e.files.length > 0 ? `
+                                            <div class="flex flex-col gap-1 pt-1">
+                                                ${e.files.map((f, i) => f.type.startsWith('image/')
+                                                    ? `<button onclick="openViewer('${f.url}')" class="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 py-1 rounded-lg text-[10px]">📷 عرض صورة ${i+1}</button>`
+                                                    : `<a href="${f.url}" target="_blank" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 py-1 rounded-lg text-[10px] text-center block">📄 تحميل ملف: ${f.name}</a>`
+                                                ).join('')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            root.innerHTML = `
+                <div class="flex flex-col h-[95vh] bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+                    <div class="bg-slate-950 p-3.5 border-b border-slate-800 flex justify-between items-center text-xs">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 font-bold">🤖</div>
+                            <h1 class="font-bold text-amber-400">نظام الاستعلام</h1>
+                        </div>
+                        <button onclick="logout()" class="text-red-400 text-[10px] bg-red-500/10 px-3 py-1 rounded-lg">خروج</button>
+                    </div>
+
+                    <div id="chatContainer" class="flex-1 p-3 overflow-y-auto space-y-3 text-xs bg-slate-950/50">
+                        ${session.messages.map(msg => `
+                            <div class="flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}">
+                                <div class="max-w-[95%] p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-amber-500 text-slate-950 font-bold rounded-bl-none' : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-br-none'} shadow-sm space-y-2">
+                                    ${msg.text ? `<p class="whitespace-pre-line leading-relaxed">${msg.text}</p>` : ''}
+                                    ${msg.isMultiple ? msg.items.map(item => `
+                                        <div class="mt-2 p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                                            ${item.content ? `<p class="text-slate-200 text-[11px] whitespace-pre-line">${item.content}</p>` : ''}
+                                            ${item.files && item.files.length > 0 ? `
+                                                <div class="space-y-1.5 pt-2 border-t border-slate-800">
+                                                    ${item.files.map((f, i) => f.type.startsWith('image/')
+                                                        ? `<button onclick="openViewer('${f.url}')" class="flex items-center justify-center gap-1 text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 w-full py-2 rounded-lg text-[10px] font-bold">🔍 عرض الصورة</button>`
+                                                        : `<a href="${f.url}" target="_blank" class="flex items-center justify-center gap-1 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 w-full py-2 rounded-lg text-[10px] font-bold">⬇️ تحميل الملف (${f.name})</a>`
+                                                    ).join('')}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    `).join('') : ''}
+                                    <span class="block text-[9px] text-right ${msg.sender === 'user' ? 'text-slate-800' : 'text-slate-500'}">${msg.time || ''}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="p-3 bg-slate-950 border-t border-slate-800">
+                        <form onsubmit="handleSubscriberQuery(event)" class="flex gap-2">
+                            <input type="text" id="queryInput" class="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-400 font-mono" placeholder="أدخل رمز النداء..." required>
+                            <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-5 py-3 rounded-xl transition text-xs">بحث</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+            const chatContainer = document.getElementById('chatContainer');
+            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function openEditModal(id) {
+            const entry = db.entries.find(e => e.id === id);
+            if (!entry) return;
+            document.getElementById('editEntryId').value = entry.id;
+            document.getElementById('editCallSign').value = entry.call_sign;
+            document.getElementById('editContent').value = entry.content || '';
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        async function saveEditEntry() {
+            const id = document.getElementById('editEntryId').value;
+            const callSign = document.getElementById('editCallSign').value;
+            const content = document.getElementById('editContent').value;
+            const fileInput = document.getElementById('editFile');
+            const progress = document.getElementById('editProgress');
+            const saveBtn = document.getElementById('saveEditBtn');
+
+            const entry = db.entries.find(e => e.id === id);
+            let updatedFiles = entry.files ? [...entry.files] : [];
+
+            saveBtn.disabled = true;
+            progress.classList.remove('hidden');
+
+            try {
+                if (fileInput.files.length > 0) {
+                    for (let i = 0; i < fileInput.files.length; i++) {
+                        const file = fileInput.files[i];
+                        const fileExt = file.name.split('.').pop();
+                        const safeFileName = `file_${Date.now()}_${Math.floor(Math.random() * 1000)}.${fileExt}`;
+
+                        const { error } = await supabaseClient.storage.from('files').upload(safeFileName, file);
+                        if (error) throw error;
+
+                        const { data: publicUrlData } = supabaseClient.storage.from('files').getPublicUrl(safeFileName);
+                        updatedFiles.push({ name: file.name, type: file.type || 'unknown', url: publicUrlData.publicUrl });
+                    }
+                }
+
+                const { error: updateError } = await supabaseClient.from('entries').update({
+                    call_sign: callSign,
+                    content: content,
+                    files: updatedFiles
+                }).eq('id', id);
+
+                if (updateError) throw updateError;
+
+                alert('تم تعديل البيانات بنجاح!');
+                closeEditModal();
+                await fetchServerData();
+                render();
+            } catch (err) {
+                alert('فشل التعديل: ' + err.message);
+            }
+            progress.classList.add('hidden');
+            saveBtn.disabled = false;
+        }
+
+        function startCameraScanner() {
+            const readerDiv = document.getElementById('reader');
+            readerDiv.classList.remove('hidden');
+            if (html5QrCode) { try { html5QrCode.stop().catch(()=>{}); } catch(e){} }
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 220, height: 220 } }, 
+                (decodedText) => {
+                    if (isValidToken(decodedText)) { html5QrCode.stop(); authenticateSubscriber(); }
+                }, () => {}
+            );
+        }
+
+        async function handleQrImageFile(e) {
+            if (e.target.files && e.target.files.length > 0) {
+                const readerObj = new Html5Qrcode("reader");
+                try {
+                    const decodedText = await readerObj.scanFile(e.target.files[0], true);
+                    if (isValidToken(decodedText)) authenticateSubscriber();
+                    else alert('كود QR غير صالح!');
+                } catch (err) { alert('لم يتم العثور على كود QR بالصورة'); }
             }
         }
 
-        function handleFileUpload(event) {
-            if (event.target.files.length === 0) return;
-            let tempScanner = new Html5Qrcode("reader");
-            tempScanner.scanFile(event.target.files[0], true)
-            .then(text => onScanSuccess(text))
-            .catch(err => alert("لم يتم العثور على QR صالح بالصورة."));
-            event.target.value = '';
+        async function updateQrSecret() {
+            const newSecret = document.getElementById('newQrSecretInput').value.trim().toUpperCase();
+            if (!newSecret) return alert('أدخل كلمة سر صحيحة');
+            const { error } = await supabaseClient.from('settings').upsert({ id: 'general', qr_secret: newSecret });
+            if (!error) {
+                db.qrSecret = newSecret;
+                alert('تم تحديث كلمة الـ QR بنجاح!');
+                render();
+            } else alert('حدث خطأ: ' + error.message);
         }
 
-        function cancelScan() {
-            if(scanner) { scanner.stop().then(() => scanner.clear()); }
-            document.getElementById('scanner-view').style.display = 'none';
-            document.getElementById('login-view').style.display = 'block';
+        async function handleAddEntry(e) {
+            e.preventDefault();
+            const callSign = document.getElementById('newCallSign').value;
+            const content = document.getElementById('newContent').value.trim();
+            const fileInput = document.getElementById('newFile');
+            const btn = document.getElementById('submitBtn');
+            const progress = document.getElementById('uploadProgress');
+
+            btn.disabled = true;
+            progress.classList.remove('hidden');
+
+            try {
+                let uploadedFiles = [];
+                if (fileInput.files.length > 0) {
+                    for (let i = 0; i < fileInput.files.length; i++) {
+                        const file = fileInput.files[i];
+                        progress.innerText = `جاري رفع الملف ${i + 1}...`;
+                        const fileExt = file.name.split('.').pop();
+                        const safeFileName = `file_${Date.now()}_${Math.floor(Math.random() * 1000)}.${fileExt}`;
+
+                        const { error } = await supabaseClient.storage.from('files').upload(safeFileName, file);
+                        if (error) throw error;
+
+                        const { data: publicUrlData } = supabaseClient.storage.from('files').getPublicUrl(safeFileName);
+                        uploadedFiles.push({ name: file.name, type: file.type || 'unknown', url: publicUrlData.publicUrl });
+                    }
+                }
+
+                const { error: dbError } = await supabaseClient.from('entries').insert([{
+                    call_sign: callSign,
+                    content: content,
+                    files: uploadedFiles
+                }]);
+
+                if (dbError) throw dbError;
+
+                alert('تم الرفع بنجاح!');
+                document.getElementById('newCallSign').value = '';
+                document.getElementById('newContent').value = '';
+                document.getElementById('newFile').value = '';
+                await fetchServerData();
+                render();
+            } catch (err) {
+                alert('فشل الرفع: ' + err.message);
+            }
+            progress.classList.add('hidden');
+            btn.disabled = false;
         }
 
-        function onScanSuccess(decodedText) {
-            cancelScan();
-            let userName = localStorage.getItem('subscriberName');
-            // هنا برمجية فتح محتوى المشترك أو توجيهه
-            alert("مرحباً " + userName + "!\nتمت قراءة الكود بنجاح:\n" + decodedText);
-            // window.location.href = decodedText; // لفتح الرابط مباشرة إن وجد
+        async function deleteEntry(id) {
+            if (confirm('هل أنت متأكد من الحذف؟')) {
+                await supabaseClient.from('entries').delete().eq('id', id);
+                await fetchServerData();
+                render();
+            }
         }
 
-        // دخول وإعدادات الأدمن
-        function adminLogin() {
-            let passInput = document.getElementById('admin-pass-input').value;
-            let savedPass = localStorage.getItem('adminPassword');
-            
-            if(passInput === savedPass) {
-                document.getElementById('login-view').style.display = 'none';
-                document.getElementById('admin-view').style.display = 'block';
-                document.getElementById('admin-pass-input').value = '';
-                document.getElementById('new-admin-pass').value = savedPass;
+        function openViewer(url) {
+            document.getElementById('modalContentContainer').innerHTML = `<img src="${url}" class="max-w-full max-h-full object-contain rounded-md">`;
+            document.getElementById('fileModal').classList.remove('hidden');
+        }
+
+        function closeViewer() { document.getElementById('fileModal').classList.add('hidden'); }
+
+        async function handleSubscriberQuery(e) {
+            e.preventDefault();
+            const input = document.getElementById('queryInput');
+            const querySign = input.value;
+            if (!querySign) return;
+
+            db.session.messages.push({ sender: 'user', text: querySign, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+            input.value = '';
+
+            const { data: matches } = await supabaseClient.from('entries').select('*').eq('call_sign', querySign);
+
+            if (matches && matches.length > 0) {
+                db.session.messages.push({ sender: 'bot', isMultiple: true, items: matches, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
             } else {
-                alert("كلمة المرور غير صحيحة!");
+                db.session.messages.push({ sender: 'bot', text: `❌ لا توجد أي نتائج برمز النداء [${querySign}]`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
             }
+            render();
         }
 
-        function logoutAdmin() {
-            document.getElementById('admin-view').style.display = 'none';
-            document.getElementById('login-view').style.display = 'block';
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            if (document.getElementById('adminPassInput').value === db.adminPass) {
+                db.session.authenticated = true; db.session.role = 'admin'; render();
+            } else alert('كلمة المرور خطأ!');
         }
 
-        function changeAdminPass() {
-            let newPass = document.getElementById('new-admin-pass').value.trim();
-            if(newPass === "") {
-                alert("لا يمكن ترك كلمة السر فارغة!"); return;
-            }
-            localStorage.setItem('adminPassword', newPass);
-            alert("تم تحديث كلمة مرور الأدمن بنجاح! ✅");
+        function logout() {
+            if (html5QrCode) { try { html5QrCode.stop(); } catch(e){} }
+            db.session = { role: null, authenticated: false, messages: [] };
+            render();
         }
 
-        // الحذف والتعديل الفردي (محاكاة الواجهة)
-        function deleteSingleFile(fileId) {
-            if(confirm("هل أنت متأكد من حذف هذا الملف فقط؟ (لن يتم حذف الرمز الأساسي)")) {
-                alert("تم إرسال أمر الحذف للملف: " + fileId);
-                // هنا تضع كود Supabase لحذف العنصر من الـ Array أو الجدول الفرعي
-            }
-        }
-
-        function editSingleFile(fileId) {
-            let newName = prompt("أدخل الاسم أو التفاصيل الجديدة لهذا الملف:");
-            if(newName) {
-                alert("تم تحديث بيانات الملف إلى: " + newName);
-                // هنا تضع كود Supabase لتحديث العنصر المحدد فقط
-            }
-        }
+        initApp();
     </script>
 </body>
 </html>
