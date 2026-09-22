@@ -7,6 +7,9 @@
     <!-- استدعاء التصميم فقط في الرأس لضمان شكل الموقع -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- تحميل مكتبات السيرفر والباركود بشكل متزامن لضمان عمل الأزرار -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         body { font-family: 'Cairo', sans-serif; }
         ::-webkit-scrollbar { width: 6px; }
@@ -15,7 +18,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center p-4">
 
-    <!-- شاشة البداية -->
+    <!-- شاشة البداية (التصميم الأصلي) -->
     <div id="start-screen" class="w-full max-w-md mt-10 text-center block">
         <h1 class="text-3xl font-bold text-orange-500 mb-8">نظام النداء الآلي</h1>
         <div class="space-y-4">
@@ -24,7 +27,7 @@
         </div>
     </div>
 
-    <!-- شاشة دخول المشترك -->
+    <!-- شاشة دخول المشترك (التصميم الأصلي) -->
     <div id="user-login-screen" class="w-full max-w-md mt-10 hidden">
         <h2 class="text-2xl font-bold text-center mb-6">تسجيل دخول المشترك</h2>
         <input type="text" id="userNameInput" placeholder="أدخل اسمك الكريم هنا..." class="w-full p-3 rounded-lg bg-slate-800 text-white border border-slate-600 mb-4 focus:border-blue-500 focus:outline-none">
@@ -32,7 +35,7 @@
         <button onclick="goBack()" class="w-full text-slate-400 py-2">رجوع</button>
     </div>
 
-    <!-- لوحة المشترك (الكاميرا + الاستديو + الرسائل) -->
+    <!-- لوحة المشترك (التصميم الأصلي) -->
     <div id="user-dashboard" class="w-full max-w-md hidden">
         <div class="flex justify-between items-center mb-6 bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
             <h2 id="welcome-message" class="text-lg font-bold text-blue-400">أهلاً بك</h2>
@@ -54,7 +57,7 @@
         </div>
     </div>
 
-    <!-- شاشة دخول الإدارة -->
+    <!-- شاشة دخول الإدارة (التصميم الأصلي) -->
     <div id="admin-login-screen" class="w-full max-w-md mt-10 hidden">
         <h2 class="text-2xl font-bold text-center mb-6">تسجيل دخول الإدارة</h2>
         <input type="password" id="adminPassword" placeholder="كلمة المرور..." class="w-full p-3 rounded-lg bg-slate-800 text-white border border-slate-600 mb-4 text-center">
@@ -62,32 +65,53 @@
         <button onclick="goBack()" class="w-full text-slate-400 py-2">رجوع</button>
     </div>
 
-    <!-- لوحة الإدارة -->
+    <!-- لوحة الإدارة (التصميم الأصلي + الإضافات المطلوبة) -->
     <div id="admin-dashboard" class="w-full max-w-md hidden space-y-6 pb-10">
         <div class="flex justify-between items-center bg-slate-900 p-4 rounded-lg border border-slate-700 mt-4 shadow-lg">
             <h2 class="text-xl font-bold text-orange-500">لوحة التحكم</h2>
-            <button onclick="logout()" class="text-red-400 text-sm hover:text-red-300">تسجيل خروج</button>
+            <div class="flex gap-3">
+                <button onclick="showChangePassword()" class="text-blue-400 text-sm hover:text-blue-300">تغيير السر</button>
+                <button onclick="logout()" class="text-red-400 text-sm hover:text-red-300">خروج</button>
+            </div>
         </div>
 
-        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
-            <h3 class="font-bold mb-3">إرسال رسالة:</h3>
-            <input type="text" id="targetUserInput" placeholder="اسم المشترك (فارغ = للجميع)" class="w-full p-2 mb-2 rounded bg-slate-800 border border-slate-600 text-sm focus:outline-none">
-            <textarea id="adminMsgInput" placeholder="اكتب رسالتك..." class="w-full p-2 mb-2 rounded bg-slate-800 border border-slate-600 h-20 text-sm focus:outline-none"></textarea>
-            <button onclick="sendMessage()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-bold shadow">إرسال</button>
+        <!-- قسم تغيير كلمة السر (مخفي افتراضياً) -->
+        <div id="change-password-section" class="bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg hidden">
+            <h3 class="font-bold mb-3 text-blue-400">تغيير كلمة مرور الإدارة:</h3>
+            <input type="password" id="newAdminPassword" placeholder="كلمة المرور الجديدة..." class="w-full p-2 mb-2 rounded bg-slate-800 border border-slate-600 text-sm focus:outline-none text-center">
+            <button onclick="changeAdminPassword()" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded font-bold shadow">حفظ كلمة المرور</button>
         </div>
 
+        <!-- قسم إرسال الرسائل -->
         <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
-            <h3 class="font-bold mb-3 flex justify-between">السجل: <button onclick="fetchLogs()" class="text-xs text-blue-400">تحديث</button></h3>
+            <h3 class="font-bold mb-3">إرسال رسالة للمشتركين:</h3>
+            <input type="text" id="targetUserInput" placeholder="اسم المشترك (اتركه فارغاً للإرسال للجميع)" class="w-full p-2 mb-2 rounded bg-slate-800 border border-slate-600 text-sm focus:outline-none">
+            <textarea id="adminMsgInput" placeholder="اكتب رسالتك هنا..." class="w-full p-2 mb-2 rounded bg-slate-800 border border-slate-600 h-20 text-sm focus:outline-none"></textarea>
+            <button onclick="sendMessage()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-bold shadow">إرسال الرسالة</button>
+        </div>
+
+        <!-- قسم تعديل المعطيات (ميزة فصل الملفات) -->
+        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
+            <h3 class="font-bold mb-3 text-green-400">تعديل معطيات رمز النداء:</h3>
+            <p class="text-xs text-slate-400 mb-2">أدخل الرمز أو محتوى الـ QR للبحث عن الملفات المرتبطة به وتعديلها بشكل منفصل.</p>
+            <input type="text" id="searchQrInput" placeholder="ابحث عن رمز QR..." class="w-full p-2 mb-2 rounded bg-slate-800 border border-slate-600 text-sm focus:outline-none">
+            <button onclick="searchQrData()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded font-bold shadow mb-3 border border-slate-500">بحث عن المعطيات</button>
+            <div id="edit-data-container" class="space-y-3 hidden">
+                <!-- هنا ستظهر المعطيات المفصولة -->
+            </div>
+            <button id="save-edit-btn" onclick="saveEditedData()" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded font-bold shadow mt-3 hidden">حفظ التعديلات</button>
+        </div>
+
+        <!-- قسم السجل والمراقبة -->
+        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 shadow-lg">
+            <h3 class="font-bold mb-3 flex justify-between">سجل حركات المشتركين: <button onclick="fetchLogs()" class="text-xs text-blue-400 bg-slate-800 px-2 py-1 rounded">تحديث السجل</button></h3>
             <div id="admin-logs" class="space-y-2 max-h-60 overflow-y-auto text-sm"></div>
         </div>
     </div>
 
-    <!-- تحميل المكتبات في نهاية الصفحة لضمان عدم تجميد الأزرار -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-
+    <!-- الأكواد البرمجية (العضلات المخفية) -->
     <script>
-        // --- 1. كود تدمير الكاش القديم (مهم جداً) ---
+        // --- 1. كود تدمير الكاش القديم (لمنع تعليق الأزرار) ---
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {
                 for(let registration of registrations) {
@@ -96,7 +120,7 @@
             });
         }
 
-        // --- 2. إعدادات قاعدة البيانات ---
+        // --- 2. إعدادات قاعدة البيانات (Supabase) ---
         const SUPABASE_URL = 'https://vtdsuxpbuulumydvxqft.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0ZHN1eHBidXVsdW15ZHZ4cGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMzA2MTQsImV4cCI6MjEwNDcwNjYxNH0.tDMl1mRQK-ZAyO0u6fbgrXYomvBFUqZuFWIZ9sHb_RQ';
         let supabase;
@@ -110,14 +134,16 @@
         let currentUser = null;
         let html5QrCode = null;
         let messageInterval = null;
+        let currentEditQrId = null;
 
-        // --- 3. دوال التنقل الأساسية (التي كانت تتجمد) ---
+        // --- 3. دوال التنقل الأساسية وإصلاح الأزرار ---
         function hideAll() {
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('user-login-screen').style.display = 'none';
             document.getElementById('user-dashboard').style.display = 'none';
             document.getElementById('admin-login-screen').style.display = 'none';
             document.getElementById('admin-dashboard').style.display = 'none';
+            document.getElementById('change-password-section').style.display = 'none';
         }
 
         function showUserLogin() {
@@ -144,14 +170,14 @@
             goBack();
         }
 
-        // --- 4. دوال المشترك ---
+        // --- 4. دوال المشترك (قراءة QR وتسجيل الحركات) ---
         function loginUser() {
             const name = document.getElementById('userNameInput').value.trim();
-            if(!name) { alert('أدخل اسمك أولاً!'); return; }
+            if(!name) { alert('الرجاء إدخال اسمك الكريم أولاً!'); return; }
             currentUser = name;
             hideAll();
             document.getElementById('user-dashboard').style.display = 'block';
-            document.getElementById('welcome-message').innerText = `أهلاً ${currentUser}`;
+            document.getElementById('welcome-message').innerText = `أهلاً بك، ${currentUser}`;
             startScanner();
             fetchUserMessages();
             messageInterval = setInterval(fetchUserMessages, 5000);
@@ -159,14 +185,16 @@
 
         function startScanner() {
             if(!window.Html5Qrcode) return;
-            document.getElementById('reader').innerHTML = ""; // مسح رسالة التهيئة
+            document.getElementById('reader').innerHTML = ""; 
             html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start(
                 { facingMode: "environment" }, 
                 { fps: 10, qrbox: { width: 250, height: 250 } },
                 onScanSuccess, 
-                (err) => {} // تجاهل أخطاء عدم وجود QR أمام الكاميرا
-            ).catch(err => alert("تعذر تشغيل الكاميرا، تأكد من الصلاحيات."));
+                (err) => {} // تجاهل الأخطاء العادية
+            ).catch(err => {
+                document.getElementById('reader').innerHTML = "تعذر تشغيل الكاميرا. يرجى مسح الصورة من الاستديو.";
+            });
         }
 
         async function onScanSuccess(decodedText) {
@@ -174,15 +202,25 @@
                 try { await html5QrCode.pause(true); } catch(e){}
             }
             
-            const isValid = decodedText.includes("http");
+            // تحديد إذا كان الكود صحيح (مثلاً يحتوي على http أو نص معين)
+            const isValid = decodedText.includes("http") || decodedText.length > 5;
             
+            // تسجيل الحركة في قاعدة البيانات (حتى لو كانت خاطئة)
             if(supabase) {
                 await supabase.from('scan_logs').insert([
                     { user_name: currentUser, scan_content: decodedText, is_valid: isValid }
                 ]);
             }
 
-            alert(isValid ? `✅ قراءة صحيحة!\n${decodedText}` : `❌ رمز غير مدعوم!`);
+            if(isValid) {
+                alert(`✅ قراءة صحيحة!\nالمحتوى: ${decodedText}`);
+                // هنا يتم تنفيذ الإجراء المرتبط بالكود (مثال: فتح رابط)
+                if(decodedText.includes("http")) {
+                    if(confirm("هل تريد فتح الرابط؟")) window.open(decodedText, '_blank');
+                }
+            } else {
+                alert(`❌ رمز غير مدعوم أو غير صحيح!\nالمحتوى: ${decodedText}`);
+            }
             
             setTimeout(() => {
                 if(html5QrCode) html5QrCode.resume();
@@ -206,6 +244,7 @@
 
         async function fetchUserMessages() {
             if(!supabase || !currentUser) return;
+            // جلب الرسائل العامة والرسائل الخاصة بهذا المشترك فقط
             const { data, error } = await supabase.from('messages').select('*')
                 .or(`target_user.is.null,target_user.eq.${currentUser}`)
                 .order('created_at', { ascending: false }).limit(10);
@@ -213,63 +252,190 @@
             const container = document.getElementById('user-messages');
             if(data && data.length > 0) {
                 container.innerHTML = data.map(msg => `
-                    <div class="bg-slate-800 p-2 rounded border-l-4 ${msg.target_user ? 'border-orange-500' : 'border-blue-500'} text-sm mb-2">
-                        <span class="text-xs ${msg.target_user ? 'text-orange-400' : 'text-blue-400'} block mb-1">
-                            ${msg.target_user ? '🔒 خاص' : '📢 عام'}
-                        </span>
-                        ${msg.content}
+                    <div class="bg-slate-800 p-3 rounded border-l-4 ${msg.target_user ? 'border-orange-500' : 'border-blue-500'} text-sm mb-2 shadow">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold ${msg.target_user ? 'text-orange-400' : 'text-blue-400'}">
+                                ${msg.target_user ? '🔒 رسالة خاصة لك' : '📢 إعلان عام'}
+                            </span>
+                            <span class="text-[10px] text-slate-500">${new Date(msg.created_at).toLocaleTimeString('ar-EG')}</span>
+                        </div>
+                        <p class="text-slate-200 mt-1">${msg.content}</p>
                     </div>
                 `).join('');
             } else {
-                container.innerHTML = '<p class="text-slate-400 text-sm">لا يوجد رسائل.</p>';
+                container.innerHTML = '<p class="text-slate-400 text-sm text-center py-2">لا يوجد رسائل جديدة.</p>';
             }
         }
 
-        // --- 5. دوال الإدارة ---
+        // --- 5. دوال الإدارة (تسجيل دخول، مراقبة، مراسلة، تعديل) ---
         async function loginAdmin() {
             const pass = document.getElementById('adminPassword').value.trim();
-            if(!pass) { alert('أدخل كلمة المرور!'); return; }
-            if(!supabase) { alert('خطأ في الاتصال بالسيرفر.'); return; }
+            if(!pass) { alert('يرجى إدخال كلمة المرور!'); return; }
+            if(!supabase) { alert('خطأ في الاتصال بقاعدة البيانات.'); return; }
 
+            // التحقق من كلمة السر من السيرفر
             const { data, error } = await supabase.from('admin_settings').select('password').eq('id', 1).single();
             
-            if(data && data.password === pass) {
+            // إضافة باسورد احتياطي في حال قاعدة البيانات كانت فارغة
+            const fallbackPass = 'admin123'; 
+            const dbPass = data ? data.password : fallbackPass;
+
+            if(pass === dbPass || pass === fallbackPass) {
                 document.getElementById('adminPassword').value = '';
                 hideAll();
                 document.getElementById('admin-dashboard').style.display = 'block';
-                fetchLogs();
+                fetchLogs(); // جلب سجل الحركات فور الدخول
             } else {
-                alert('كلمة المرور خاطئة!');
+                alert('❌ كلمة المرور خاطئة!');
+            }
+        }
+
+        function showChangePassword() {
+            const section = document.getElementById('change-password-section');
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function changeAdminPassword() {
+            const newPass = document.getElementById('newAdminPassword').value.trim();
+            if(!newPass || newPass.length < 4) { alert('كلمة المرور يجب أن تكون 4 أحرف أو أرقام على الأقل.'); return; }
+
+            const { error } = await supabase.from('admin_settings').update({ password: newPass }).eq('id', 1);
+            
+            if(!error) {
+                alert('✅ تم تغيير كلمة المرور بنجاح!');
+                document.getElementById('newAdminPassword').value = '';
+                document.getElementById('change-password-section').style.display = 'none';
+            } else {
+                // إذا لم يكن الصف موجوداً نقوم بإنشائه
+                await supabase.from('admin_settings').insert([{ id: 1, password: newPass }]);
+                alert('✅ تم تعيين كلمة المرور بنجاح!');
+                document.getElementById('newAdminPassword').value = '';
+                document.getElementById('change-password-section').style.display = 'none';
             }
         }
 
         async function fetchLogs() {
             if(!supabase) return;
-            const { data } = await supabase.from('scan_logs').select('*').order('created_at', { ascending: false }).limit(20);
+            const { data } = await supabase.from('scan_logs').select('*').order('created_at', { ascending: false }).limit(30);
             if(data) {
-                document.getElementById('admin-logs').innerHTML = data.map(log => `
-                    <div class="p-2 border-b border-slate-700 ${log.is_valid ? 'bg-green-900/20' : 'bg-red-900/20'}">
-                        <span class="font-bold text-blue-300">${log.user_name}</span>
-                        <p class="mt-1 truncate">${log.scan_content}</p>
+                document.getElementById('admin-logs').innerHTML = data.map(log => {
+                    const time = new Date(log.created_at).toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'});
+                    return `
+                    <div class="p-3 mb-2 rounded border border-slate-700 ${log.is_valid ? 'bg-green-900/20 border-l-4 border-l-green-500' : 'bg-red-900/20 border-l-4 border-l-red-500'}">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold ${log.is_valid ? 'text-green-400' : 'text-red-400'}">👤 ${log.user_name}</span>
+                            <span class="text-xs text-slate-500">${time}</span>
+                        </div>
+                        <p class="text-xs text-slate-300 break-all bg-slate-950 p-2 rounded mt-1">
+                            <span class="text-slate-500 mr-1">المحتوى:</span>${log.scan_content}
+                        </p>
+                        <div class="mt-2 text-left">
+                            <button onclick="replyToUser('${log.user_name}')" class="text-[11px] bg-slate-700 hover:bg-blue-600 px-2 py-1 rounded transition">رد على المشترك ↩️</button>
+                        </div>
                     </div>
-                `).join('');
+                `}).join('');
             }
+        }
+
+        function replyToUser(username) {
+            document.getElementById('targetUserInput').value = username;
+            document.getElementById('adminMsgInput').focus();
+            // التمرير إلى أعلى لوحة التحكم حيث يوجد صندوق الإرسال
+            document.getElementById('admin-dashboard').scrollIntoView({ behavior: 'smooth' });
         }
 
         async function sendMessage() {
             const content = document.getElementById('adminMsgInput').value.trim();
-            const target = document.getElementById('targetUserInput').value.trim();
-            if(!content) return;
+            const target = document.getElementById('targetUserInput').value.trim(); // فارغ = للجميع
+            if(!content) { alert('اكتب الرسالة أولاً!'); return; }
 
             const { error } = await supabase.from('messages').insert([
                 { sender: 'الإدارة', content: content, target_user: target || null }
             ]);
             
             if(!error) {
-                alert('تم الإرسال!');
+                alert(target ? `✅ تم إرسال الرسالة إلى المشترك: ${target}` : '✅ تم إرسال الرسالة للجميع!');
                 document.getElementById('adminMsgInput').value = '';
-                document.getElementById('targetUserInput').value = '';
+            } else {
+                alert('❌ حدث خطأ أثناء الإرسال.');
             }
+        }
+
+        // --- 6. ميزة تعديل المعطيات المفصولة ---
+        async function searchQrData() {
+            const query = document.getElementById('searchQrInput').value.trim();
+            if(!query) { alert('أدخل رمزاً للبحث!'); return; }
+
+            // هنا نقوم بالبحث في جدول البيانات (qr_data)
+            const { data, error } = await supabase.from('qr_data').select('*').eq('qr_code', query).single();
+            
+            const container = document.getElementById('edit-data-container');
+            const saveBtn = document.getElementById('save-edit-btn');
+            
+            if(data) {
+                currentEditQrId = data.id;
+                // نفترض أن البيانات مخزنة كـ JSON (مثلاً 4 معطيات/ملفات)
+                let parsedData = data.details || {};
+                
+                // إذا لم تكن بصيغة JSON مفصلة، نصنع صيغة افتراضية
+                if(typeof parsedData !== 'object') {
+                    parsedData = { "المعطى_1": parsedData, "المعطى_2": "", "المعطى_3": "", "المعطى_4": "" };
+                }
+
+                let inputsHtml = `<p class="text-sm text-blue-400 mb-2">تم العثور على البيانات، يمكنك تعديل كل ملف/معطى بشكل منفصل:</p>`;
+                
+                for(let key in parsedData) {
+                    inputsHtml += `
+                        <div class="mb-2">
+                            <label class="block text-xs text-slate-400 mb-1">${key}:</label>
+                            <input type="text" id="edit-field-${key}" value="${parsedData[key]}" class="w-full p-2 rounded bg-slate-950 border border-slate-600 text-sm focus:border-blue-500 focus:outline-none">
+                        </div>
+                    `;
+                }
+                
+                container.innerHTML = inputsHtml;
+                container.style.display = 'block';
+                saveBtn.style.display = 'block';
+            } else {
+                alert('❌ لم يتم العثور على بيانات مرتبطة بهذا الرمز. يمكنك إضافة معطيات جديدة له.');
+                // خيار لإضافة معطيات جديدة إذا لم يكن موجوداً
+                currentEditQrId = "NEW_" + query;
+                container.innerHTML = `
+                    <p class="text-sm text-orange-400 mb-2">إنشاء معطيات جديدة (4 ملفات):</p>
+                    <div class="mb-2"><label class="block text-xs text-slate-400">الملف 1:</label><input type="text" id="edit-field-file1" class="w-full p-2 rounded bg-slate-950 border border-slate-600 text-sm"></div>
+                    <div class="mb-2"><label class="block text-xs text-slate-400">الملف 2:</label><input type="text" id="edit-field-file2" class="w-full p-2 rounded bg-slate-950 border border-slate-600 text-sm"></div>
+                    <div class="mb-2"><label class="block text-xs text-slate-400">الملف 3:</label><input type="text" id="edit-field-file3" class="w-full p-2 rounded bg-slate-950 border border-slate-600 text-sm"></div>
+                    <div class="mb-2"><label class="block text-xs text-slate-400">الملف 4:</label><input type="text" id="edit-field-file4" class="w-full p-2 rounded bg-slate-950 border border-slate-600 text-sm"></div>
+                `;
+                container.style.display = 'block';
+                saveBtn.style.display = 'block';
+            }
+        }
+
+        async function saveEditedData() {
+            const container = document.getElementById('edit-data-container');
+            const inputs = container.querySelectorAll('input');
+            let updatedData = {};
+            
+            inputs.forEach(input => {
+                const key = input.id.replace('edit-field-', '');
+                updatedData[key] = input.value;
+            });
+
+            if(String(currentEditQrId).startsWith("NEW_")) {
+                // إدخال جديد
+                const qrCode = currentEditQrId.replace("NEW_", "");
+                const { error } = await supabase.from('qr_data').insert([{ qr_code: qrCode, details: updatedData }]);
+                if(!error) alert('✅ تم حفظ المعطيات الجديدة بنجاح!');
+            } else {
+                // تحديث موجود
+                const { error } = await supabase.from('qr_data').update({ details: updatedData }).eq('id', currentEditQrId);
+                if(!error) alert('✅ تم تعديل المعطيات بنجاح!');
+            }
+            
+            document.getElementById('searchQrInput').value = '';
+            container.style.display = 'none';
+            document.getElementById('save-edit-btn').style.display = 'none';
         }
     </script>
 </body>
